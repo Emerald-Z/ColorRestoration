@@ -64,3 +64,64 @@ def load_model():
   inception.eval()
 
   return inception
+
+class SimpleWithSkips(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(4,4), stride=2, padding=(1,1)) #one input channel
+        self.conv1_bn = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4,4), stride=2, padding=(1,1))
+        self.conv2_bn = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=(4,4), stride=2, padding=(1,1))
+        self.conv3_bn = nn.BatchNorm2d(128)
+
+        self.t_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=(4,4), stride=2, padding=(1,1))
+        self.t_conv1_bn = nn.BatchNorm2d(64)
+        self.t_conv2 = nn.ConvTranspose2d(128, 32, kernel_size=(4,4), stride=2, padding=(1,1))
+        self.t_conv2_bn = nn.BatchNorm2d(32)
+        self.t_conv3 = nn.ConvTranspose2d(64, 2, kernel_size=(4,4), stride=2, padding=(1,1))
+
+        self.output = nn.Conv2d(3, 2, kernel_size=(3,3), stride=1, padding=(1,1)) # two output channels
+        
+    def forward(self, x):
+        x_1 = torch.relu(self.conv1_bn(self.conv1(x)))
+        x_2 = torch.relu(self.conv2_bn(self.conv2(x_1)))
+        x_3 = torch.relu(self.conv3_bn(self.conv3(x_2)))
+
+        x_4 = torch.relu(self.t_conv1_bn(self.t_conv1(x_3)))
+        x_4 = torch.cat((x_4, x_2), 1)
+        x_5 = torch.relu(self.t_conv2_bn(self.t_conv2(x_4)))
+        x_5 = torch.cat((x_5, x_1), 1)
+        x_6 = torch.relu(self.t_conv3(x_5))
+        x_6 = torch.cat((x_6, x), 1)
+        out = self.output(x_6)
+        return out
+    
+class SimpleRecoloringNet(nn.Module):
+    def __init__(self):
+        super(SimpleRecoloringNet, self).__init__()
+
+      #future modifications
+        # batch norm
+        #
+        self.encoder = torch.nn.Sequential(
+          nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=0),  # Input channels=1 for luminance value
+          nn.ReLU(),
+          nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=0),
+          nn.ReLU(),
+          nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=0),
+          nn.ReLU()
+        )
+        self.decoder = nn.Sequential(
+          nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1, padding=0),  # Reverse of encoder to end up with same dims
+          nn.ReLU(),
+          nn.ConvTranspose2d(32, 16, kernel_size=3, stride=1, padding=0),
+          nn.ReLU(),
+          nn.ConvTranspose2d(16, 2, kernel_size=3, stride=1, padding=0, output_padding=0), #output channel = 2 for u/v color values
+          nn.Sigmoid()  # scale pixel 0-1 #or we probably want to predict residuals like the difference in each pixel?
+        )
+
+    def forward(self, x):
+      x = self.encoder(x)
+      x = self.decoder(x)
+      return x
