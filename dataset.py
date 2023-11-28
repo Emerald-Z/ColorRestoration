@@ -35,7 +35,10 @@ def generate_dataset(input_path, max_num, img_size):
             h = img_size
             w = int(width * (h / height))
 
-        img = cv2.resize(img, (w, h))
+        gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray_img = cv2.merge([gray_img, gray_img, gray_img])
+
+        img = cv2.resize(gray_img, (w, h))
         filename = os.path.splitext(filename)[0]
         rgb_image = np.transpose(cv2.resize(img, (img_size, img_size)), (2, 0, 1))
         output_path = os.path.join("rgb", f"processed_{filename}")
@@ -49,7 +52,7 @@ def generate_dataset(input_path, max_num, img_size):
         Y = yuv_image[:, :, 0]
         U = yuv_image[:, :, 1]
         V = yuv_image[:, :, 2]
-        np.save(output_path, np.stack((U, V)))
+        # np.save(output_path, np.stack((U, V)))
         output_path = os.path.join("gray", f"processed_{filename}")
-        np.save(output_path, Y.reshape(1, img_size, img_size))
+        # np.save(output_path, Y.reshape(1, img_size, img_size))
 
