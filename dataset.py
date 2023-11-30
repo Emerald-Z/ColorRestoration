@@ -5,21 +5,52 @@ import os
 import random
 
 class ImgDataset(torch.utils.data.Dataset):
-  def __init__(self, gray, color, rgb):
+  def __init__(self, gray, color, max):
     gray_paths = os.listdir(gray)
     color_paths = os.listdir(color)
-    rgb_paths = os.listdir(rgb)
-    self.paths = list(set(gray_paths) & set(color_paths) & set(rgb_paths))
+    self.paths = list(set(gray_paths) & set(color_paths))[0:max]
 
     self.gray = gray
     self.color = color
-    self.rgb = rgb
+    print(len(self.paths))
 
   def __getitem__(self, index):
     y = np.load(os.path.join(self.gray, self.paths[index])) / 255. #normalize
     uv = np.load(os.path.join(self.color, self.paths[index])) / 255
-    rgb = np.load(os.path.join(self.rgb, self.paths[index])) / 255
-    return y, uv, rgb
+    y = y.squeeze()
+    y = cv2.resize(y, (64, 64))
+    uv = uv.reshape(256, 256, 2)
+    uv = cv2.resize(uv, (64, 64))
+    y = y.reshape(1, 64, 64)
+    uv = uv.reshape(2, 64, 64)
+    return y, uv
+  
+  def __len__(self):
+    return len(self.paths)
+  
+class ImgDataset64(torch.utils.data.Dataset):
+  def __init__(self, gray, color):
+    gray_paths = os.listdir(gray)
+    color_paths = os.listdir(color)
+    self.paths = list(set(gray_paths) & set(color_paths))
+
+    self.gray = gray
+    self.color = color
+    print(len(self.paths))
+
+  def __getitem__(self, index):
+    y = np.load(os.path.join(self.gray, self.paths[index])) / 255. #normalize
+    uv = np.load(os.path.join(self.color, self.paths[index])) / 255
+    y = y.squeeze()
+    y = cv2.resize(y, (64, 64))
+    uv = uv.reshape(256, 256, 2)
+    uv = cv2.resize(uv, (64, 64))
+    y = y.reshape(1, 64, 64)
+    uv = uv.reshape(2, 64, 64)
+
+    y = torch.tensor(y).to('cuda')
+    uv = torch.tensor(uv).to('cuda')
+    return y, uv
   
   def __len__(self):
     return len(self.paths)

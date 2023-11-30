@@ -1,5 +1,5 @@
 from dataset import generate_dataset, ImgDataset
-from recoloringnet import RecoloringNet, BetterWithSkips
+from recoloringnet import RecoloringNet, BetterWithSkips, SkipConnectionUnet, SimpleRecoloringNet
 from utilities import yuv_to_img
 import torchvision
 from recoloringnet import load_model
@@ -9,18 +9,18 @@ import cv2
 import numpy as np
 import datetime
 
-def train(dataset, validation_dataset, model, epochs, lr=.002, checkpnt_path="model"):
+def train(dataset, validation_dataset, model, epochs, lr=.002, checkpnt_path="model", resume=0):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size = 64)
     validation_dataloader = torch.utils.data.DataLoader(validation_dataset)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.L1Loss()
-
+    criterion = nn.MSELoss()
+    model.train()
     #we can do some fancy loss with l2 distance, SSIM or other stuff but for now maybe just pixel differences
     #https://arxiv.org/pdf/1511.08861.pdf good losses for image restoration
 
-    for epoch in range(epochs):
-        for batch_idx, (y, uv, rgb) in enumerate(dataloader):
+    for epoch in range(resume, epochs):
+        for batch_idx, (y, uv) in enumerate(dataloader):
             y = y.float()
             uv = uv.float()
             optimizer.zero_grad()
@@ -51,14 +51,14 @@ def eval(validation_loader, model, criterion):
     total_loss = 0.0
 
     with torch.no_grad():
-        for y, uv, rgb in validation_loader:
+        for y, uv in validation_loader:
             y = y.float()
             uv = uv.float()
 
-            rgb = torch.Tensor(np.array(rgb, dtype='uint8'))
-            with torch.no_grad():
-              embed = inception(rgb)
-            outputs = model(y, embed)
+            # rgb = torch.Tensor(np.array(rgb, dtype='uint8'))
+            # with torch.no_grad():
+            #   embed = inception(rgb)
+            outputs = model(y)
             loss = criterion(outputs, uv)
             total_loss += loss.item() * y.size(0)
     average_loss = total_loss / len(validation_loader.dataset)
@@ -79,20 +79,20 @@ def test_reconstruction():
 if __name__ == "__main__":
     # torchvision.datasets.CelebA(root="ex", split="train", download=True)
 
-    model = BetterWithSkips()
-    # generate_dataset("iaprtc12/images", 3000, 256, path_base="train_", depth=2)
-    # generate_dataset("iaprtc12/images", 200, 256, path_base="val_", depth=2)
+    # model = SimpleRecoloringNet()
+    generate_dataset("iaprtc12/images", 3000, 256, path_base="ia_train_", depth=2)
+    generate_dataset("iaprtc12/images", 200, 256, path_base="ia_val_", depth=2)
 
-    dataset = ImgDataset("train_gray", "train_color", "train_rgb")
-    val_dataset = ImgDataset("val_gray", "val_color", "val_rgb")
-    # for (y, uv), i in zip(dataset, range(3)):
-    #     print("gray, ", y)
-    #     print(y.shape)
-    #     print("color, ", uv)
-    #     print(uv.shape)
+    # dataset = ImgDataset("celeb_train_gray", "celeb_train_color", 100)
+    # val_dataset = ImgDataset("celeb_val_gray", "celeb_val_color", 200)
+    # # for (y, uv), i in zip(dataset, range(3)):
+    # #     print("gray, ", y)
+    # #     print(y.shape)
+    # #     print("color, ", uv)
+    # #     print(uv.shape)
 
-    # inception = load_model()
-    train(dataset, val_dataset, model, 101)
+    # # inception = load_model()
+    # train(dataset, val_dataset, model, 101)
 
     # test
     # test_reconstruction()
