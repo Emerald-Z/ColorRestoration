@@ -98,3 +98,5 @@ def generate_dataset(input_path, max_num, img_size, path_base="", depth=1):
         output_path = os.path.join(path_base + "gray", f"processed_{filename}")
         np.save(output_path, Y.reshape(1, img_size, img_size))
 
+if __name__ == "__main__":
+    generate_dataset("test2", max_num=5, img_size=256, path_base="t_", depth=1)

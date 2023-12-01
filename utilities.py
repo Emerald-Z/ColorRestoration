@@ -44,17 +44,16 @@ def test_with_model():
 
 def test_with_model64():
     #change these or you could pass them in
-    i = 360
-    dim = 256
-    model = SkipConnectionUnet()
-    prefix = "drive/MyDrive/celeb_"
+    i = 1
+    dim =256
+    model = SimpleRecoloringNet()
+    prefix = "t_"
     #dataset = ImgDataset(prefix + "train_gray", prefix + "train_color")
     #val_dataset = ImgDataset(prefix + "val_gray", prefix + "val_color")
-    y_base_dir = prefix + "train_gray"
-    uv_base_dir = prefix + "train_color"
-    model_name = "./drive/MyDrive/model_epoch_300-1.pt"
-
-    model.load_state_dict(torch.load(model_name))
+    y_base_dir = prefix + "gray"
+    uv_base_dir = prefix + "color"
+    model_name = "./model_epoch_295-basic.pt"
+    model.load_state_dict(torch.load(model_name, map_location=torch.device('cpu')))
     paths = os.listdir(y_base_dir)
     y = np.load(f"{y_base_dir}/{paths[i]}") / 255.
     uv = np.load(f"{uv_base_dir}/{paths[i]}") / 255.
@@ -75,5 +74,26 @@ def test_with_model64():
     yuv_to_img(y, out, path="model_out", dim=dim, bgr=True) #get the model out
 
 
+def test_color_compression():
+    i = 1000
+    dim = 256
+    prefix = "ia_"
+    y_base_dir = prefix + "train_gray"
+    uv_base_dir = prefix + "train_color"
+    paths = os.listdir(y_base_dir)
+
+    y = np.load(f"{y_base_dir}/{paths[i]}") / 255.
+    uv = np.load(f"{uv_base_dir}/{paths[i]}") / 255.
+    # print(uv)
+    yuv_to_img(y, uv, dim=dim, path="normal_color1")
+    uv = uv.reshape(dim, dim, 2)
+    uv = cv2.resize(uv, (64, 64))
+    uv = cv2.resize(uv, (dim, dim))
+    uv = uv.reshape(2, dim, dim)
+    # print(uv)
+    yuv_to_img(y, uv, path="compressed_color1", dim=dim) #get the model out
+
+
 if __name__=="__main__":
-    test_with_model()
+    test_with_model64()
+    #test_color_compression()
